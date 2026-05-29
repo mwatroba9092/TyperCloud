@@ -1,0 +1,55 @@
+# Izolacja sieciowa warstwy danych.
+# Domyslnie po nalozeniu polityki ruch przychodzacy jest blokowany,
+# a dozwolone sa TYLKO jawnie wymienione zrodla.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-allow-backend-worker
+  labels:
+    app: postgres
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: backend
+        - podSelector:
+            matchLabels:
+              app: worker
+        # Zitadel (serwer auth) trzyma swoje dane w tej samej bazie.
+        - podSelector:
+            matchLabels:
+              app: zitadel
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-allow-backend-worker
+  labels:
+    app: redis
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: backend
+        - podSelector:
+            matchLabels:
+              app: worker
+      ports:
+        - protocol: TCP
+          port: 6379

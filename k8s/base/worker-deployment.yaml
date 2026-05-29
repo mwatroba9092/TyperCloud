@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels:
+    app: worker
+spec:
+  # Worker: dokladnie 1 replika (kolejka przetwarzana sekwencyjnie).
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: worker
+          image: typercloud/worker:latest
+          envFrom:
+            - configMapRef:
+                name: typercloud-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: typercloud-secret
+                  key: DATABASE_URL
+          # Worker nie wystawia HTTP - probes sprawdzaja, czy proces zyje.
+          readinessProbe:
+            exec:
+              command: ["pgrep", "-f", "worker.py"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pgrep", "-f", "worker.py"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "128Mi"

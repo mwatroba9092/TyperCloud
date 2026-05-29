@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Srodowisko PROD - osobny namespace, wieksze limity i wiecej replik.
+namespace: typercloud-prod
+
+resources:
+  - ../../base
+
+patches:
+  - path: patch-replicas.yaml
+
+# Tagi obrazow specyficzne dla PROD (CI podstawia konkretny SHA / wersje).
+images:
+  - name: typercloud/backend
+    newTag: prod
+  - name: typercloud/frontend
+    newTag: prod
+  - name: typercloud/worker
+    newTag: prod

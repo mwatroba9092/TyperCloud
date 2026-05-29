@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-pdb
+  labels:
+    app: backend
+spec:
+  # High Availability: zawsze co najmniej 1 pod backendu dostepny
+  # podczas dobrowolnych zaklocen (np. drain noda, rollout).
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: backend

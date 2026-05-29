@@ -1,0 +1,36 @@
+# Jedyny punkt wejscia z zewnatrz. Wystawiamy WYLACZNIE frontend i serwer auth.
+# Postgres, Redis i Worker NIE maja zadnej reguly Ingress -> pozostaja
+# osiagalne tylko wewnatrz klastra przez Service (ClusterIP).
+#
+# Routing host-based: Zitadel nie dziala poprawnie pod sciezka /auth,
+# dlatego serwer autoryzacji dostaje wlasny host (auth.typercloud.local),
+# co pokrywa sie z OIDC_ISSUER w ConfigMap.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: typercloud-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: app.typercloud.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 8501
+    - host: auth.typercloud.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: zitadel
+                port:
+                  number: 8080

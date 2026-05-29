@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: typercloud-config
+  labels:
+    app.kubernetes.io/part-of: typercloud
+data:
+  # --- Redis (bez hasla -> dane niewrazliwe) ---
+  REDIS_URL: "redis://redis:6379/0"
+  REDIS_CHANNEL: "match_finished"
+
+  # --- OAuth 2.0 / Zitadel (backend - resource server) ---
+  OIDC_ISSUER: "http://auth.typercloud.local"
+  OIDC_JWKS_URL: "http://zitadel:8080/oauth/v2/keys"
+  OIDC_AUDIENCE: "typercloud"
+  OIDC_ROLES_CLAIM: "urn:zitadel:iam:org:project:roles"
+
+  # --- Frontend (Streamlit) ---
+  API_URL: "http://backend:8000"
+  OIDC_CLIENT_ID: "typercloud"
+  OIDC_REDIRECT_URI: "http://app.typercloud.local/"
+  OIDC_SCOPE: "openid profile email urn:zitadel:iam:org:project:roles"

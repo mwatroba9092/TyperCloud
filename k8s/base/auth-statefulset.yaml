@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: zitadel
+  labels:
+    app: zitadel
+spec:
+  selector:
+    app: zitadel
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zitadel
+  labels:
+    app: zitadel
+spec:
+  serviceName: zitadel
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zitadel
+  template:
+    metadata:
+      labels:
+        app: zitadel
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: zitadel
+          image: ghcr.io/zitadel/zitadel:v2.65.1
+          args:
+            - "start-from-init"
+            - "--masterkey"
+            - "$(ZITADEL_MASTERKEY)"
+            - "--tlsMode"
+            - "disabled"
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ZITADEL_MASTERKEY
+              valueFrom:
+                secretKeyRef:
+                  name: typercloud-secret
+                  key: ZITADEL_MASTERKEY
+            - name: ZITADEL_EXTERNALSECURE
+              value: "false"
+            - name: ZITADEL_EXTERNALDOMAIN
+              value: "auth.typercloud.local"
+            - name: ZITADEL_EXTERNALPORT
+              value: "80"
+            - name: ZITADEL_TLS_ENABLED
+              value: "false"
+            - name: ZITADEL_DATABASE_POSTGRES_HOST
+              value: "postgres"
+            - name: ZITADEL_DATABASE_POSTGRES_PORT
+              value: "5432"
+            - name: ZITADEL_DATABASE_POSTGRES_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: typercloud-secret
+                  key: ZITADEL_DB_NAME
+            - name: ZITADEL_DATABASE_POSTGRES_USER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: typercloud-secret
+                  key: POSTGRES_USER
+            - name: ZITADEL_DATABASE_POSTGRES_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: typercloud-secret
+                  key: POSTGRES_PASSWORD
+            - name: ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE
+              value: "disable"
+            - name: ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: typercloud-secret
+                  key: POSTGRES_USER
+            - name: ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: typercloud-secret
+                  key: POSTGRES_PASSWORD
+            - name: ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE
+              value: "disable"
+          volumeMounts:
+            - name: zitadel-data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /debug/ready
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /debug/healthz
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+  # --- TRWALOSC serwera autoryzacji: wlasny PersistentVolumeClaim ---
+  volumeClaimTemplates:
+    - metadata:
+        name: zitadel-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
