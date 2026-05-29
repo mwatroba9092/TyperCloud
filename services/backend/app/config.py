@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     oidc_issuer: str = "http://localhost:8080"
     # Adres do kluczy publicznych (JWKS) sluzacych do weryfikacji podpisu JWT.
     oidc_jwks_url: str = "http://localhost:8080/oauth/v2/keys"
+    # Endpoint userinfo - Zitadel zwraca tu role (access token ich nie zawiera).
+    oidc_userinfo_url: str = "http://localhost:8080/oidc/v1/userinfo"
     # Identyfikator klienta (audience), do ktorego adresowany jest token.
     oidc_audience: str = "typercloud"
     # Nazwa claimu z rolami. Zitadel domyslnie uzywa tego URN.

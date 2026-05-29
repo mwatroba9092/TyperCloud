@@ -52,9 +52,10 @@ def handle_login_callback():
     params = st.query_params
     if "code" in params and "access_token" not in st.session_state:
         code = params["code"]
-        verifier = st.session_state.get("code_verifier")
+        state = params.get("state", "")
+        verifier = auth.pop_verifier(state)
         if not verifier:
-            st.error("Brak code_verifier w sesji - rozpocznij logowanie ponownie.")
+            st.error("Sesja logowania wygasla - kliknij 'Zaloguj sie' jeszcze raz.")
             return
         try:
             token_data = auth.exchange_code_for_token(code, verifier)
@@ -63,11 +64,17 @@ def handle_login_callback():
             return
         access_token = token_data["access_token"]
         st.session_state["access_token"] = access_token
-        claims = auth.decode_claims(access_token)
-        st.session_state["username"] = claims.get("preferred_username") or claims.get(
+        # Role i nazwe uzytkownika bierzemy z userinfo (access token ich nie zawiera).
+        try:
+            userinfo = auth.get_userinfo(access_token)
+        except httpx.HTTPError as exc:
+            st.error(f"Nie udalo sie pobrac userinfo: {exc}")
+            return
+        st.session_state["claims"] = userinfo
+        st.session_state["username"] = userinfo.get("preferred_username") or userinfo.get(
             "email", "uzytkownik"
         )
-        st.session_state["roles"] = auth.extract_roles(claims)
+        st.session_state["roles"] = auth.extract_roles(userinfo)
         st.query_params.clear()
         st.rerun()
 
@@ -75,9 +82,7 @@ def handle_login_callback():
 def render_login():
     st.title("TyperCloud - Typer Pilkarski")
     st.write("Zaloguj sie przez Zitadel (OAuth 2.0 + PKCE), aby typowac wyniki.")
-    verifier, challenge = auth.generate_pkce()
-    st.session_state["code_verifier"] = verifier
-    login_url = auth.build_authorize_url(challenge)
+    login_url = auth.start_login()
     st.link_button("Zaloguj sie przez Zitadel", login_url)
 
 
@@ -199,6 +204,12 @@ def main():
         st.session_state.clear()
         st.rerun()
 
+    # Podglad diagnostyczny zawartosci tokenu (do debugowania rol).
+    with st.sidebar.expander("Debug: zawartosc tokenu (JWT)"):
+        st.json(st.session_state.get("claims", {}))
+        st.caption("Surowy access_token (do skopiowania):")
+        st.code(token, language="text")
+
     st.title("TyperCloud")
     try:
         matches = render_matches(token)
@@ -206,6 +217,9 @@ def main():
         render_rankings(token)
         if "ADMIN" in roles:
             render_admin(token, matches)
+    except httpx.HTTPStatusError as exc:
+        # Pokaz konkretny powod zwrocony przez backend (np. tresc bledu JWT/roli).
+        st.error(f"API odrzucilo zadanie ({exc.response.status_code}): {exc.response.text}")
     except httpx.HTTPError as exc:
         st.error(f"Problem z polaczeniem z API: {exc}")
 

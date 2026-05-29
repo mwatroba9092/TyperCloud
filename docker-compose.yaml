@@ -1,0 +1,114 @@
+# Lokalne srodowisko deweloperskie TyperCloud (WSL2 / Ubuntu 24.04).
+# Uruchomienie:  docker compose up --build
+# Frontend (Streamlit) dostepny na: http://localhost:8501
+# Zitadel (logowanie)  dostepny na: http://localhost:8080
+#
+# UWAGA: wartosci hasel sa DEMO - sa tu jawnie tylko dla wygody lokalnej.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: typer
+      POSTGRES_PASSWORD: typerpass
+      POSTGRES_DB: typer
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U typer -d typer"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [typernet]
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [typernet]
+
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:v2.65.1
+    command: 'start-from-init --masterkey "MasterkeyNeedsToHave32Character!" --tlsMode disabled'
+    environment:
+      ZITADEL_EXTERNALSECURE: "false"
+      ZITADEL_EXTERNALDOMAIN: "localhost"
+      ZITADEL_EXTERNALPORT: "8080"
+      ZITADEL_TLS_ENABLED: "false"
+      ZITADEL_DATABASE_POSTGRES_HOST: postgres
+      ZITADEL_DATABASE_POSTGRES_PORT: "5432"
+      ZITADEL_DATABASE_POSTGRES_DATABASE: zitadel
+      ZITADEL_DATABASE_POSTGRES_USER_USERNAME: typer
+      ZITADEL_DATABASE_POSTGRES_USER_PASSWORD: typerpass
+      ZITADEL_DATABASE_POSTGRES_USER_SSL_MODE: disable
+      ZITADEL_DATABASE_POSTGRES_ADMIN_USERNAME: typer
+      ZITADEL_DATABASE_POSTGRES_ADMIN_PASSWORD: typerpass
+      ZITADEL_DATABASE_POSTGRES_ADMIN_SSL_MODE: disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    networks: [typernet]
+
+  backend:
+    build: ./services/backend
+    # initContainer w K8s = tutaj uruchamiamy migracje przed startem API.
+    command: >
+      sh -c "python -m app.init_db &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://typer:typerpass@postgres:5432/typer
+      REDIS_URL: redis://redis:6379/0
+      REDIS_CHANNEL: match_finished
+      OIDC_ISSUER: http://localhost:8080
+      OIDC_JWKS_URL: http://zitadel:8080/oauth/v2/keys
+      OIDC_USERINFO_URL: http://zitadel:8080/oidc/v1/userinfo
+      OIDC_AUDIENCE: "375085643967037445"
+      OIDC_ROLES_CLAIM: "urn:zitadel:iam:org:project:roles"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    networks: [typernet]
+
+  worker:
+    build: ./services/worker
+    environment:
+      DATABASE_URL: postgresql+psycopg2://typer:typerpass@postgres:5432/typer
+      REDIS_URL: redis://redis:6379/0
+      REDIS_CHANNEL: match_finished
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [typernet]
+
+  frontend:
+    build: ./services/frontend
+    environment:
+      API_URL: http://backend:8000
+      OIDC_ISSUER: http://localhost:8080
+      OIDC_INTERNAL_URL: http://zitadel:8080
+      OIDC_CLIENT_ID: "375085643967037445"
+      OIDC_REDIRECT_URI: http://localhost:8501/
+      OIDC_SCOPE: "openid profile email urn:zitadel:iam:org:project:roles"
+    depends_on:
+      - backend
+    ports:
+      - "8501:8501"
+    networks: [typernet]
+
+volumes:
+  pgdata:
+
+networks:
+  typernet:
+    driver: bridge

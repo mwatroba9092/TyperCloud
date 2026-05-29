@@ -6,6 +6,7 @@ tylko pobiera klucze publiczne (JWKS) wystawcy i weryfikuje nimi podpis tokenu.
 import time
 from dataclasses import dataclass
 from typing import Optional
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import Depends, HTTPException, status
@@ -33,7 +34,11 @@ class CurrentUser:
 def _get_jwks() -> dict:
     now = time.time()
     if _jwks_cache["keys"] is None or now - _jwks_cache["fetched_at"] > _JWKS_TTL:
-        resp = httpx.get(settings.oidc_jwks_url, timeout=5.0)
+        # JWKS pobieramy z adresu wewnetrznego (np. zitadel:8080), ale Zitadel
+        # rozpoznaje instancje po naglowku Host - musi byc zgodny z issuerem.
+        issuer_host = urlparse(settings.oidc_issuer).netloc
+        headers = {"Host": issuer_host} if issuer_host else {}
+        resp = httpx.get(settings.oidc_jwks_url, headers=headers, timeout=5.0)
         resp.raise_for_status()
         _jwks_cache["keys"] = resp.json()
         _jwks_cache["fetched_at"] = now
@@ -48,6 +53,21 @@ def _extract_roles(claims: dict) -> list[str]:
     if isinstance(raw, list):
         return raw
     return []
+
+
+def _fetch_userinfo(token: str) -> dict:
+    """Pobiera dane uzytkownika (w tym role) z endpointu userinfo Zitadel.
+
+    Zitadel nie umieszcza rol w access tokenie - sa dostepne w userinfo.
+    Host musi byc zgodny z issuerem (rozpoznanie instancji).
+    """
+    issuer_host = urlparse(settings.oidc_issuer).netloc
+    headers = {"Authorization": f"Bearer {token}"}
+    if issuer_host:
+        headers["Host"] = issuer_host
+    resp = httpx.get(settings.oidc_userinfo_url, headers=headers, timeout=5.0)
+    resp.raise_for_status()
+    return resp.json()
 
 
 def get_current_user(
@@ -76,13 +96,22 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Brak 'sub' w tokenie"
         )
 
+    # Role i nazwe uzytkownika bierzemy z userinfo (access token ich nie ma).
+    try:
+        userinfo = _fetch_userinfo(token)
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Nie udalo sie pobrac userinfo: {exc}",
+        )
+
     username = (
-        claims.get("preferred_username")
-        or claims.get("email")
-        or claims.get("name")
+        userinfo.get("preferred_username")
+        or userinfo.get("email")
+        or userinfo.get("name")
         or sub
     )
-    return CurrentUser(sub=sub, username=username, roles=_extract_roles(claims))
+    return CurrentUser(sub=sub, username=username, roles=_extract_roles(userinfo))
 
 
 def require_role(role: str):

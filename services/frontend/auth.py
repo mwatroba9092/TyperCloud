@@ -12,11 +12,15 @@ import json
 import os
 import secrets
 from typing import Optional
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import httpx
 
+# Adres widziany przez PRZEGLADARKE (link logowania, redirect).
 OIDC_ISSUER = os.environ.get("OIDC_ISSUER", "http://localhost:8080")
+# Adres do polaczen SERWER->SERWER z wnetrza kontenera (wymiana kodu na token).
+# W kontenerze 'localhost' to sam frontend, dlatego uzywamy nazwy uslugi 'zitadel'.
+OIDC_INTERNAL_URL = os.environ.get("OIDC_INTERNAL_URL", OIDC_ISSUER)
 CLIENT_ID = os.environ.get("OIDC_CLIENT_ID", "typercloud")
 REDIRECT_URI = os.environ.get("OIDC_REDIRECT_URI", "http://localhost:8501")
 SCOPE = os.environ.get(
@@ -25,7 +29,11 @@ SCOPE = os.environ.get(
 )
 
 AUTHORIZE_ENDPOINT = f"{OIDC_ISSUER}/oauth/v2/authorize"
-TOKEN_ENDPOINT = f"{OIDC_ISSUER}/oauth/v2/token"
+TOKEN_ENDPOINT = f"{OIDC_INTERNAL_URL}/oauth/v2/token"
+USERINFO_ENDPOINT = f"{OIDC_INTERNAL_URL}/oidc/v1/userinfo"
+# Zitadel rozpoznaje instancje po naglowku Host - przy wywolaniu wewnetrznym
+# (na zitadel:8080) musimy podac Host zgodny z domena zewnetrzna (localhost:8080).
+_ISSUER_HOST = urlparse(OIDC_ISSUER).netloc
 
 
 def generate_pkce() -> tuple[str, str]:
@@ -50,6 +58,26 @@ def build_authorize_url(code_challenge: str, state: Optional[str] = None) -> str
     return f"{AUTHORIZE_ENDPOINT}?{urlencode(params)}"
 
 
+# Magazyn code_verifier na poziomie PROCESU (nie sesji Streamlit).
+# st.session_state ginie po przeladowaniu strony / w nowej karcie, dlatego
+# verifier przechowujemy tu, kluczowany przez 'state' przekazany w OAuth.
+# Wystarczajace dla lokalnego, jednoprocesowego uruchomienia.
+_pending_verifiers: dict[str, str] = {}
+
+
+def start_login() -> str:
+    """Inicjuje logowanie: generuje PKCE + state, zapamietuje verifier i zwraca URL."""
+    verifier, challenge = generate_pkce()
+    state = secrets.token_urlsafe(16)
+    _pending_verifiers[state] = verifier
+    return build_authorize_url(challenge, state)
+
+
+def pop_verifier(state: str) -> Optional[str]:
+    """Pobiera (i usuwa) code_verifier powiazany z danym 'state'."""
+    return _pending_verifiers.pop(state, None)
+
+
 def exchange_code_for_token(code: str, code_verifier: str) -> dict:
     """Wymiana kodu autoryzacji na token - bez client_secret (klient publiczny)."""
     data = {
@@ -59,7 +87,19 @@ def exchange_code_for_token(code: str, code_verifier: str) -> dict:
         "client_id": CLIENT_ID,
         "code_verifier": code_verifier,
     }
-    resp = httpx.post(TOKEN_ENDPOINT, data=data, timeout=10.0)
+    # Host wskazuje na domene zewnetrzna, mimo ze laczymy sie do uslugi 'zitadel'.
+    headers = {"Host": _ISSUER_HOST} if _ISSUER_HOST else {}
+    resp = httpx.post(TOKEN_ENDPOINT, data=data, headers=headers, timeout=10.0)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get_userinfo(access_token: str) -> dict:
+    """Pobiera userinfo z Zitadel (zawiera role, ktorych nie ma w access tokenie)."""
+    headers = {"Authorization": f"Bearer {access_token}"}
+    if _ISSUER_HOST:
+        headers["Host"] = _ISSUER_HOST
+    resp = httpx.get(USERINFO_ENDPOINT, headers=headers, timeout=10.0)
     resp.raise_for_status()
     return resp.json()
 
