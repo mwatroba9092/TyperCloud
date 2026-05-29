@@ -12,3 +12,6 @@ venv/
 .vscode/
 .idea/
 .DS_Store
+
+# Prywatne notatki (audyt wymagan) - nie commitowac
+FORME.md

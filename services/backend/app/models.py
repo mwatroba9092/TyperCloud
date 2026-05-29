@@ -38,8 +38,13 @@ class Prediction(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     match_id = Column(Integer, ForeignKey("matches.id"), nullable=False)
-    predicted_score_a = Column(Integer, nullable=False)
-    predicted_score_b = Column(Integer, nullable=False)
+    # Typ zakladu: "score" (dokladny wynik) lub "outcome" (1 / X / 2).
+    bet_type = Column(String, nullable=False, default="score")
+    # Wypelniane dla zakladu "score" (dokladny wynik).
+    predicted_score_a = Column(Integer, nullable=True)
+    predicted_score_b = Column(Integer, nullable=True)
+    # Wypelniane dla zakladu "outcome": "home" / "draw" / "away".
+    predicted_outcome = Column(String, nullable=True)
     # Punkty przyznane przez workera (None = jeszcze nieprzeliczone).
     points_awarded = Column(Integer, nullable=True)
 

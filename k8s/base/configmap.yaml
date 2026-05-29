@@ -10,13 +10,22 @@ data:
   REDIS_CHANNEL: "match_finished"
 
   # --- OAuth 2.0 / Zitadel (backend - resource server) ---
+  # OIDC_ISSUER: adres zewnetrzny widziany przez przegladarke (Host dla Zitadel).
   OIDC_ISSUER: "http://auth.typercloud.local"
+  # JWKS i userinfo wolamy WEWNATRZ klastra po Service 'zitadel' (Host = issuer).
   OIDC_JWKS_URL: "http://zitadel:8080/oauth/v2/keys"
+  OIDC_USERINFO_URL: "http://zitadel:8080/oidc/v1/userinfo"
+  # UWAGA: po utworzeniu aplikacji PKCE w Zitadelu w klastrze podmien ponizsza
+  # wartosc na wygenerowany Client ID (audience tokenu) - placeholder na czas bootstrapu.
   OIDC_AUDIENCE: "typercloud"
   OIDC_ROLES_CLAIM: "urn:zitadel:iam:org:project:roles"
 
   # --- Frontend (Streamlit) ---
   API_URL: "http://backend:8000"
+  # Client ID musi byc taki sam jak OIDC_AUDIENCE backendu (po stworzeniu aplikacji).
   OIDC_CLIENT_ID: "typercloud"
+  # Polaczenia serwer->serwer z poda frontendu (wymiana kodu, userinfo, logout backend-side).
+  OIDC_INTERNAL_URL: "http://zitadel:8080"
   OIDC_REDIRECT_URI: "http://app.typercloud.local/"
+  OIDC_POST_LOGOUT_REDIRECT_URI: "http://app.typercloud.local/"
   OIDC_SCOPE: "openid profile email urn:zitadel:iam:org:project:roles"

@@ -81,12 +81,21 @@ points                 team_b                     match_id (FK -> matches.id)
 
 ## 5. Reguły punktacji
 
-Funkcja czysta `calculate_points(pred_a, pred_b, real_a, real_b)` w `worker.py`:
+Worker rozróżnia dwa typy zakładu (`bet_type`):
+
+**Zakład „score” (dokładny wynik)** — `score_bet(...)`:
 
 | Warunek | Punkty |
 |---|:---:|
 | Dokładny wynik (`pred == real`) | 3 |
 | Ten sam rezultat (zwycięzca/remis), inny wynik | 1 |
+| Błędny rezultat | 0 |
+
+**Zakład „outcome” (rezultat 1/X/2)** — `score_outcome(...)`:
+
+| Warunek | Punkty |
+|---|:---:|
+| Trafiony rezultat (`home`/`draw`/`away`) | 1 |
 | Błędny rezultat | 0 |
 
 Aktualizacja punktów użytkownika jest **idempotentna** — przy ponownym

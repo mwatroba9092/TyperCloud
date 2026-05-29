@@ -59,8 +59,10 @@ class Prediction(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     match_id = Column(Integer, ForeignKey("matches.id"), nullable=False)
-    predicted_score_a = Column(Integer, nullable=False)
-    predicted_score_b = Column(Integer, nullable=False)
+    bet_type = Column(String, nullable=False, default="score")
+    predicted_score_a = Column(Integer, nullable=True)
+    predicted_score_b = Column(Integer, nullable=True)
+    predicted_outcome = Column(String, nullable=True)
     points_awarded = Column(Integer, nullable=True)
 
 
@@ -72,12 +74,24 @@ def _outcome(a: int, b: int) -> str:
     return "draw"
 
 
-def calculate_points(pred_a: int, pred_b: int, real_a: int, real_b: int) -> int:
+def score_bet(pred_a: int, pred_b: int, real_a: int, real_b: int) -> int:
+    """Punktacja zakladu na DOKLADNY WYNIK."""
     if pred_a == real_a and pred_b == real_b:
         return 3
     if _outcome(pred_a, pred_b) == _outcome(real_a, real_b):
         return 1
     return 0
+
+
+def score_outcome(predicted_outcome: str, real_a: int, real_b: int) -> int:
+    """Punktacja zakladu na REZULTAT (1/X/2): 1 pkt za trafienie, inaczej 0."""
+    return 1 if predicted_outcome == _outcome(real_a, real_b) else 0
+
+
+def points_for_prediction(pred: "Prediction", real_a: int, real_b: int) -> int:
+    if pred.bet_type == "outcome":
+        return score_outcome(pred.predicted_outcome, real_a, real_b)
+    return score_bet(pred.predicted_score_a, pred.predicted_score_b, real_a, real_b)
 
 
 def process_match(match_id: int) -> None:
@@ -92,12 +106,7 @@ def process_match(match_id: int) -> None:
             db.query(Prediction).filter(Prediction.match_id == match_id).all()
         )
         for pred in predictions:
-            new_points = calculate_points(
-                pred.predicted_score_a,
-                pred.predicted_score_b,
-                match.score_a,
-                match.score_b,
-            )
+            new_points = points_for_prediction(pred, match.score_a, match.score_b)
             # Idempotencja: jesli juz przeliczono, korygujemy roznica.
             previous = pred.points_awarded or 0
             delta = new_points - previous

@@ -27,8 +27,12 @@ class MatchOut(BaseModel):
 
 class PredictionCreate(BaseModel):
     match_id: int
-    predicted_score_a: int
-    predicted_score_b: int
+    # "score" = dokladny wynik, "outcome" = rezultat 1/X/2.
+    bet_type: str = "score"
+    predicted_score_a: Optional[int] = None
+    predicted_score_b: Optional[int] = None
+    # "home" / "draw" / "away" (tylko dla bet_type == "outcome").
+    predicted_outcome: Optional[str] = None
 
 
 class PredictionOut(BaseModel):
@@ -36,8 +40,10 @@ class PredictionOut(BaseModel):
 
     id: int
     match_id: int
-    predicted_score_a: int
-    predicted_score_b: int
+    bet_type: str
+    predicted_score_a: Optional[int] = None
+    predicted_score_b: Optional[int] = None
+    predicted_outcome: Optional[str] = None
     points_awarded: Optional[int] = None
 
 

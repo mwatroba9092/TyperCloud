@@ -23,6 +23,8 @@ OIDC_ISSUER = os.environ.get("OIDC_ISSUER", "http://localhost:8080")
 OIDC_INTERNAL_URL = os.environ.get("OIDC_INTERNAL_URL", OIDC_ISSUER)
 CLIENT_ID = os.environ.get("OIDC_CLIENT_ID", "typercloud")
 REDIRECT_URI = os.environ.get("OIDC_REDIRECT_URI", "http://localhost:8501")
+# Adres, na ktory Zitadel odsyla po wylogowaniu (musi byc dozwolony w aplikacji).
+POST_LOGOUT_REDIRECT_URI = os.environ.get("OIDC_POST_LOGOUT_REDIRECT_URI", REDIRECT_URI)
 SCOPE = os.environ.get(
     "OIDC_SCOPE",
     "openid profile email urn:zitadel:iam:org:project:roles",
@@ -31,6 +33,8 @@ SCOPE = os.environ.get(
 AUTHORIZE_ENDPOINT = f"{OIDC_ISSUER}/oauth/v2/authorize"
 TOKEN_ENDPOINT = f"{OIDC_INTERNAL_URL}/oauth/v2/token"
 USERINFO_ENDPOINT = f"{OIDC_INTERNAL_URL}/oidc/v1/userinfo"
+# End session uzywa adresu PRZEGLADARKI (to przekierowanie w oknie uzytkownika).
+END_SESSION_ENDPOINT = f"{OIDC_ISSUER}/oidc/v1/end_session"
 # Zitadel rozpoznaje instancje po naglowku Host - przy wywolaniu wewnetrznym
 # (na zitadel:8080) musimy podac Host zgodny z domena zewnetrzna (localhost:8080).
 _ISSUER_HOST = urlparse(OIDC_ISSUER).netloc
@@ -54,8 +58,25 @@ def build_authorize_url(code_challenge: str, state: Optional[str] = None) -> str
         "code_challenge": code_challenge,
         "code_challenge_method": "S256",
         "state": state,
+        # Wymus logowanie za KAZDYM razem (Zitadel zawsze pyta o dane, ignoruje SSO).
+        "prompt": "login",
     }
     return f"{AUTHORIZE_ENDPOINT}?{urlencode(params)}"
+
+
+def build_logout_url(id_token: Optional[str] = None) -> str:
+    """URL wylogowania OIDC (End Session) - kasuje sesje/ciasteczko w Zitadel.
+
+    id_token_hint pozwala Zitadelowi pominac ekran potwierdzenia i od razu
+    odeslac na post_logout_redirect_uri.
+    """
+    params = {
+        "post_logout_redirect_uri": POST_LOGOUT_REDIRECT_URI,
+        "client_id": CLIENT_ID,
+    }
+    if id_token:
+        params["id_token_hint"] = id_token
+    return f"{END_SESSION_ENDPOINT}?{urlencode(params)}"
 
 
 # Magazyn code_verifier na poziomie PROCESU (nie sesji Streamlit).

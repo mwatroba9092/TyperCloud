@@ -96,6 +96,30 @@ def set_match_result(
     return match
 
 
+@app.delete("/api/matches/{match_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_match(
+    match_id: int,
+    db: Session = Depends(get_db),
+    _admin: CurrentUser = Depends(require_role("ADMIN")),
+):
+    match = db.get(models.Match, match_id)
+    if match is None:
+        raise HTTPException(status_code=404, detail="Mecz nie istnieje")
+
+    # Usuwamy powiazane typy; jesli juz przyznano punkty - odejmujemy je userom.
+    predictions = db.query(models.Prediction).filter_by(match_id=match_id).all()
+    for pred in predictions:
+        if pred.points_awarded:
+            user = db.get(models.User, pred.user_id)
+            if user is not None:
+                user.points = max(0, (user.points or 0) - pred.points_awarded)
+        db.delete(pred)
+
+    db.delete(match)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @app.post(
     "/api/predictions",
     response_model=schemas.PredictionOut,
@@ -119,19 +143,50 @@ def create_prediction(
         .filter_by(user_id=user.sub, match_id=payload.match_id)
         .first()
     )
-    if existing:
-        raise HTTPException(status_code=409, detail="Typ na ten mecz juz istnieje")
 
-    prediction = models.Prediction(
-        user_id=user.sub,
-        match_id=payload.match_id,
-        predicted_score_a=payload.predicted_score_a,
-        predicted_score_b=payload.predicted_score_b,
-    )
-    db.add(prediction)
+    # Walidacja zaleznie od typu zakladu + przygotowanie wartosci.
+    if payload.bet_type == "outcome":
+        if payload.predicted_outcome not in ("home", "draw", "away"):
+            raise HTTPException(
+                status_code=400,
+                detail="Dla zakladu 'outcome' podaj predicted_outcome: home/draw/away",
+            )
+        new_values = dict(
+            bet_type="outcome",
+            predicted_outcome=payload.predicted_outcome,
+            predicted_score_a=None,
+            predicted_score_b=None,
+        )
+    elif payload.bet_type == "score":
+        if payload.predicted_score_a is None or payload.predicted_score_b is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Dla zakladu 'score' podaj predicted_score_a i predicted_score_b",
+            )
+        new_values = dict(
+            bet_type="score",
+            predicted_score_a=payload.predicted_score_a,
+            predicted_score_b=payload.predicted_score_b,
+            predicted_outcome=None,
+        )
+    else:
+        raise HTTPException(status_code=400, detail="Nieznany bet_type (score/outcome)")
+
+    # Upsert: aktualizacja istniejacego typu (auto-submit) lub utworzenie nowego.
+    if existing:
+        for field, value in new_values.items():
+            setattr(existing, field, value)
+        existing.points_awarded = None
+        prediction = existing
+    else:
+        prediction = models.Prediction(
+            user_id=user.sub, match_id=payload.match_id, **new_values
+        )
+        db.add(prediction)
+        PREDICTIONS_CREATED.inc()
+
     db.commit()
     db.refresh(prediction)
-    PREDICTIONS_CREATED.inc()
     return prediction
 
 
