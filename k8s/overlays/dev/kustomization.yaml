@@ -1,7 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Srodowisko DEV - osobny namespace, mniejsze limity zasobow.
 namespace: typercloud-dev
 
 resources:
@@ -10,11 +9,13 @@ resources:
 patches:
   - path: patch-replicas.yaml
 
-# Tagi obrazow specyficzne dla DEV (CI podstawia konkretny SHA).
 images:
   - name: typercloud/backend
+    newName: ghcr.io/mwatroba9092/TyperCloud/backend
     newTag: dev
   - name: typercloud/frontend
+    newName: ghcr.io/mwatroba9092/TyperCloud/frontend
     newTag: dev
   - name: typercloud/worker
+    newName: ghcr.io/mwatroba9092/TyperCloud/worker
     newTag: dev

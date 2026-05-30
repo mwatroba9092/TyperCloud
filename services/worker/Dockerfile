@@ -10,7 +10,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY worker.py .
 
-# --- SecurityContext: kontener nie dziala jako root ---
 RUN useradd -m appuser
 USER appuser
 

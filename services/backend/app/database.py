@@ -1,4 +1,3 @@
-"""Konfiguracja SQLAlchemy: silnik, sesja i deklaratywna baza modeli."""
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -12,7 +11,6 @@ Base = declarative_base()
 
 
 def get_db():
-    """Zaleznosc FastAPI dostarczajaca sesje DB na czas requestu."""
     db = SessionLocal()
     try:
         yield db

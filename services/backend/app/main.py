@@ -1,14 +1,3 @@
-"""TyperCloud API (FastAPI).
-
-Endpointy:
-  GET  /health            -> publiczny health-check
-  GET  /metrics           -> metryki Prometheus
-  GET  /api/matches       -> lista meczow (wymaga zalogowania)
-  POST /api/matches       -> dodanie meczu (rola ADMIN)
-  PUT  /api/matches/{id}/result -> wpisanie wyniku + sygnal do Redis (ADMIN)
-  POST /api/predictions   -> typowanie (rola USER)
-  GET  /api/rankings      -> tabela rankingowa (wymaga zalogowania)
-"""
 import redis
 from fastapi import Depends, FastAPI, HTTPException, Response, status
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
@@ -23,12 +12,10 @@ from .security import CurrentUser, get_current_user, require_role
 settings = get_settings()
 app = FastAPI(title=settings.app_name)
 
-# Klient Redis (pub/sub) - polaczenie leniwe, wspoldzielone.
 redis_client = redis.Redis.from_url(settings.redis_url, decode_responses=True)
 
 
 def _ensure_user(db: Session, user: CurrentUser) -> models.User:
-    """Tworzy rekord usera przy pierwszym kontakcie (na podstawie tokenu)."""
     db_user = db.get(models.User, user.sub)
     if db_user is None:
         db_user = models.User(id=user.sub, username=user.username, points=0)
@@ -90,7 +77,6 @@ def set_match_result(
     match.status = "finished"
     db.commit()
 
-    # Sygnal do kolejki: worker przeliczy punkty asynchronicznie.
     redis_client.publish(settings.redis_channel, str(match.id))
     MATCHES_FINISHED.inc()
     return match
@@ -106,7 +92,6 @@ def delete_match(
     if match is None:
         raise HTTPException(status_code=404, detail="Mecz nie istnieje")
 
-    # Usuwamy powiazane typy; jesli juz przyznano punkty - odejmujemy je userom.
     predictions = db.query(models.Prediction).filter_by(match_id=match_id).all()
     for pred in predictions:
         if pred.points_awarded:
@@ -144,7 +129,6 @@ def create_prediction(
         .first()
     )
 
-    # Walidacja zaleznie od typu zakladu + przygotowanie wartosci.
     if payload.bet_type == "outcome":
         if payload.predicted_outcome not in ("home", "draw", "away"):
             raise HTTPException(
@@ -172,7 +156,6 @@ def create_prediction(
     else:
         raise HTTPException(status_code=400, detail="Nieznany bet_type (score/outcome)")
 
-    # Upsert: aktualizacja istniejacego typu (auto-submit) lub utworzenie nowego.
     if existing:
         for field, value in new_values.items():
             setattr(existing, field, value)

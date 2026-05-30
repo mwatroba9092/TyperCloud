@@ -132,7 +132,7 @@ Zitadel przy pierwszym starcie tworzy konsolę administracyjną pod http://local
 Aby logowanie OAuth zadziałało end-to-end, należy w konsoli Zitadel:
 1. utworzyć **Projekt** i w nim **aplikację typu User Agent / PKCE** (klient publiczny, bez sekretu),
 2. ustawić **Redirect URI** na `http://localhost:8501/`,
-3. nadać `Client ID` zgodny z `OIDC_CLIENT_ID` (domyślnie `typercloud`),
+3. skopiować wygenerowany **Client ID** do `OIDC_CLIENT_ID` (frontend) i `OIDC_AUDIENCE` (backend) — w projekcie: `375085643967037445`,
 4. zdefiniować role projektu **USER** oraz **ADMIN** i przypisać je użytkownikom.
 
 > Logika aplikacji i walidacja tokenów są gotowe — powyższe to jednorazowa konfiguracja IdP.
@@ -168,7 +168,8 @@ Pipeline (`.github/workflows/deploy.yaml`) uruchamiany przy `push` na `main`:
 2. **build-and-push** — Docker Buildx buduje obrazy `backend/frontend/worker` i publikuje do **GHCR**,
 3. **deploy** — `kubectl apply -k k8s/overlays/dev` + `kubectl rollout status`.
 
-Do podmiany przez użytkownika: `IMAGE_NAMESPACE` (owner/repo) oraz sekret `KUBE_CONFIG`.
+Obrazy publikowane do `ghcr.io/mwatroba9092/TyperCloud/*` (zgodnie z `IMAGE_NAMESPACE` w workflow).
+Do ręcznej konfiguracji w GitHubie pozostaje tylko sekret **`KUBE_CONFIG`** (kubeconfig w base64), jeśli chcesz auto-deploy z Actions na klaster.
 
 ---
 

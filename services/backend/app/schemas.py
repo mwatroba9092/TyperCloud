@@ -1,4 +1,3 @@
-"""Modele Pydantic uzywane w request/response API."""
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
@@ -27,11 +26,9 @@ class MatchOut(BaseModel):
 
 class PredictionCreate(BaseModel):
     match_id: int
-    # "score" = dokladny wynik, "outcome" = rezultat 1/X/2.
     bet_type: str = "score"
     predicted_score_a: Optional[int] = None
     predicted_score_b: Optional[int] = None
-    # "home" / "draw" / "away" (tylko dla bet_type == "outcome").
     predicted_outcome: Optional[str] = None
 
 

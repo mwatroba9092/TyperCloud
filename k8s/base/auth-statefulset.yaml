@@ -114,7 +114,6 @@ spec:
             limits:
               cpu: "1"
               memory: "1Gi"
-  # --- TRWALOSC serwera autoryzacji: wlasny PersistentVolumeClaim ---
   volumeClaimTemplates:
     - metadata:
         name: zitadel-data

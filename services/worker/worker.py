@@ -1,17 +1,3 @@
-"""Worker TyperCloud.
-
-Nasluchuje kanalu Redis. Po otrzymaniu ID zakonczonego meczu:
-  1. pobiera z PostgreSQL rzeczywisty wynik,
-  2. pobiera wszystkie typy przypisane do tego meczu,
-  3. przelicza punkty wg zasad:
-       - 3 pkt: idealny wynik (typ == wynik),
-       - 1 pkt: poprawny rezultat (zwyciezca/remis), ale niedokladny wynik,
-       - 0 pkt: bledny rezultat,
-  4. zapisuje punkty typu i aktualizuje sume punktow uzytkownika.
-
-Worker jest samodzielnym serwisem - ma wlasne, minimalne modele ORM
-odwzorowujace te same tabele co backend.
-"""
 import os
 
 import redis
@@ -75,7 +61,6 @@ def _outcome(a: int, b: int) -> str:
 
 
 def score_bet(pred_a: int, pred_b: int, real_a: int, real_b: int) -> int:
-    """Punktacja zakladu na DOKLADNY WYNIK."""
     if pred_a == real_a and pred_b == real_b:
         return 3
     if _outcome(pred_a, pred_b) == _outcome(real_a, real_b):
@@ -84,7 +69,6 @@ def score_bet(pred_a: int, pred_b: int, real_a: int, real_b: int) -> int:
 
 
 def score_outcome(predicted_outcome: str, real_a: int, real_b: int) -> int:
-    """Punktacja zakladu na REZULTAT (1/X/2): 1 pkt za trafienie, inaczej 0."""
     return 1 if predicted_outcome == _outcome(real_a, real_b) else 0
 
 
@@ -107,7 +91,6 @@ def process_match(match_id: int) -> None:
         )
         for pred in predictions:
             new_points = points_for_prediction(pred, match.score_a, match.score_b)
-            # Idempotencja: jesli juz przeliczono, korygujemy roznica.
             previous = pred.points_awarded or 0
             delta = new_points - previous
             pred.points_awarded = new_points

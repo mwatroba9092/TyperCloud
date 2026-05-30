@@ -12,7 +12,6 @@ COPY app ./app
 
 EXPOSE 8000
 
-# --- SecurityContext: kontener nie dziala jako root ---
 RUN useradd -m appuser
 USER appuser
 

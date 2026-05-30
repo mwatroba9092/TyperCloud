@@ -1,4 +1,3 @@
-"""Proste testy jednostkowe odpalane w CI (pytest)."""
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -13,7 +12,6 @@ def test_health_is_public_and_ok():
 
 
 def test_matches_requires_auth():
-    # Bez tokenu Bearer endpoint musi odrzucic zadanie (401/403).
     resp = client.get("/api/matches")
     assert resp.status_code in (401, 403)
 

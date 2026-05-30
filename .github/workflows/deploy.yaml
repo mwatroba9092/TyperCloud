@@ -1,23 +1,14 @@
 name: TyperCloud CI/CD
 
-# Uruchamia sie po kazdym push na galaz main.
 on:
   push:
     branches: [main]
 
-# ----------------------------------------------------------------------------
-# PLACEHOLDERY DO PODMIANY:
-#   REGISTRY        - rejestr obrazow (domyslnie GitHub Container Registry)
-#   IMAGE_NAMESPACE - <owner>/<repo>, np. ghcr.io/jankowalski/typercloud
-# Sekrety repozytorium (Settings -> Secrets and variables -> Actions):
-#   KUBE_CONFIG     - zawartosc pliku kubeconfig (base64 lub raw) do dostepu do klastra
-# ----------------------------------------------------------------------------
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAMESPACE: ghcr.io/OWNER/REPO   # <-- PODMIEN na swoj owner/repo
+  IMAGE_NAMESPACE: ghcr.io/mwatroba9092/TyperCloud
 
 jobs:
-  # 1) Proste testy jednostkowe backendu (pytest).
   test:
     runs-on: ubuntu-latest
     steps:
@@ -39,7 +30,6 @@ jobs:
         working-directory: services/backend
         run: pytest -v
 
-  # 2) Budowa i publikacja obrazow (frontend, backend, worker) do GHCR.
   build-and-push:
     needs: test
     runs-on: ubuntu-latest
@@ -72,7 +62,6 @@ jobs:
             ${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}:dev
             ${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}:${{ github.sha }}
 
-  # 3) Wdrozenie na klaster Kubernetes (overlay dev) + weryfikacja rolloutu.
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest

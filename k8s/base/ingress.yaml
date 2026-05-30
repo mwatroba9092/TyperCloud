@@ -1,10 +1,3 @@
-# Jedyny punkt wejscia z zewnatrz. Wystawiamy WYLACZNIE frontend i serwer auth.
-# Postgres, Redis i Worker NIE maja zadnej reguly Ingress -> pozostaja
-# osiagalne tylko wewnatrz klastra przez Service (ClusterIP).
-#
-# Routing host-based: Zitadel nie dziala poprawnie pod sciezka /auth,
-# dlatego serwer autoryzacji dostaje wlasny host (auth.typercloud.local),
-# co pokrywa sie z OIDC_ISSUER w ConfigMap.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

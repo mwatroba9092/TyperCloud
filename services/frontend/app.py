@@ -1,8 +1,3 @@
-"""TyperCloud - frontend (Streamlit).
-
-Obsluguje logowanie OAuth2 PKCE oraz widoki: mecze, typowanie, ranking,
-a dla ADMINA dodatkowo zarzadzanie meczami i wpisywanie wynikow.
-"""
 import base64
 import os
 from functools import lru_cache
@@ -18,7 +13,6 @@ ICON_PATH = os.path.join(os.path.dirname(__file__), "img", "iconTyper.png")
 
 @lru_cache
 def icon_data_uri():
-    """Wczytuje ikone jako data-URI (base64). Zwraca None, gdy pliku brak."""
     try:
         with open(ICON_PATH, "rb") as fh:
             encoded = base64.b64encode(fh.read()).decode()
@@ -28,7 +22,6 @@ def icon_data_uri():
 
 st.set_page_config(page_title="TyperCloud", page_icon="⚽", layout="centered")
 
-# Motyw fioletowo-czarno-szary + stylizacja kart i sidebaru.
 _CSS = """
 <style>
 .stApp { background: radial-gradient(1200px 600px at 50% -10%, #221b33 0%, #15131c 60%); }
@@ -122,14 +115,12 @@ def api_delete(path: str, token: str):
 
 
 def handle_login_callback():
-    """Po powrocie z Zitadel zamienia 'code' na token."""
     params = st.query_params
     if "code" in params and "access_token" not in st.session_state:
         code = params["code"]
         state = params.get("state", "")
         verifier = auth.pop_verifier(state)
         if not verifier:
-            # Brak verifiera (np. odswiezenie callbacku) - wroc do czystego logowania.
             st.query_params.clear()
             st.rerun()
             return
@@ -138,13 +129,11 @@ def handle_login_callback():
             access_token = token_data["access_token"]
             userinfo = auth.get_userinfo(access_token)
         except httpx.HTTPError as exc:
-            # Zapisujemy blad, by render_login NIE wpadl w petle auto-przekierowania.
             st.session_state["auth_error"] = str(exc)
             st.query_params.clear()
             return
         st.session_state.pop("auth_error", None)
         st.session_state["access_token"] = access_token
-        # id_token sluzy jako hint przy wylogowaniu (OIDC End Session).
         st.session_state["id_token"] = token_data.get("id_token")
         st.session_state["claims"] = userinfo
         st.session_state["username"] = userinfo.get("preferred_username") or userinfo.get(
@@ -173,8 +162,6 @@ def render_login():
         st.error(f"Logowanie nie powiodlo sie: {st.session_state['auth_error']}")
 
     login_url = auth.start_login()
-    # Przycisk logowania (ta sama karta). Zitadel wymusza podanie danych za
-    # kazdym razem (parametr prompt=login), wiec trzeba sie zalogowac na nowo.
     st.markdown(
         f'<a class="tc-loginbtn" href="{login_url}" target="_self">'
         "Zaloguj sie przez Zitadel</a>",
@@ -234,7 +221,6 @@ def render_prediction_form(token: str, matches: list):
         return
     labels = {f"#{m['id']} {m['team_a']} vs {m['team_b']}": m["id"] for m in open_matches}
 
-    # Widgety POZA st.form -> zmiana "Rodzaj typu" od razu przelacza pola formularza.
     choice = st.selectbox("Mecz", list(labels.keys()), key="pred_match")
     mode = st.radio(
         "Rodzaj typu",
@@ -328,7 +314,6 @@ def render_admin(token: str, matches: list):
             except httpx.HTTPStatusError as exc:
                 st.error(f"Blad: {exc.response.text}")
 
-    # Usuwanie meczow (nadchodzacych lub rozegranych).
     if matches:
         with st.form("delete_match_form"):
             st.markdown("**Usun mecz** (nadchodzacy lub rozegrany)")
@@ -367,13 +352,9 @@ def render_sidebar(token: str, roles: list):
     st.sidebar.markdown(_role_badges(roles), unsafe_allow_html=True)
     st.sidebar.divider()
     if st.sidebar.button("Wyloguj", use_container_width=True):
-        # Czyscimy sesje aplikacji i wracamy na ekran logowania.
-        # Ponowne logowanie i tak wymusza podanie danych (prompt=login),
-        # wiec nie trzeba przekierowywac do Zitadela (zadnego ekranu "Wylogowanie...").
         st.session_state.clear()
         st.rerun()
 
-    # Tabela debugowa dostepna WYLACZNIE dla roli ADMIN.
     if is_admin:
         st.sidebar.divider()
         with st.sidebar.expander("Debug (ADMIN): token"):
@@ -395,11 +376,6 @@ def main():
 
     render_sidebar(token, roles)
 
-    # st.markdown(
-    #     '<div class="tc-hero"><h1>⚽ TyperCloud</h1>'
-    #     "<p>Twoje typy, wyniki na zywo i ranking graczy.</p></div>",
-    #     unsafe_allow_html=True,
-    # )
     icon = icon_data_uri()
     logo = (
         f'<img src="{icon}" alt="TyperCloud logo" '
@@ -417,7 +393,6 @@ def main():
         if "ADMIN" in roles:
             render_admin(token, matches)
     except httpx.HTTPStatusError as exc:
-        # Pokaz konkretny powod zwrocony przez backend (np. tresc bledu JWT/roli).
         st.error(f"API odrzucilo zadanie ({exc.response.status_code}): {exc.response.text}")
     except httpx.HTTPError as exc:
         st.error(f"Problem z polaczeniem z API: {exc}")

@@ -1,6 +1,3 @@
-# Izolacja sieciowa warstwy danych.
-# Domyslnie po nalozeniu polityki ruch przychodzacy jest blokowany,
-# a dozwolone sa TYLKO jawnie wymienione zrodla.
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -22,7 +19,6 @@ spec:
         - podSelector:
             matchLabels:
               app: worker
-        # Zitadel (serwer auth) trzyma swoje dane w tej samej bazie.
         - podSelector:
             matchLabels:
               app: zitadel

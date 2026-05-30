@@ -5,7 +5,6 @@ metadata:
   labels:
     app: postgres
 spec:
-  # Headless Service - wymagany przez StatefulSet, daje stabilna nazwe DNS.
   clusterIP: None
   selector:
     app: postgres
@@ -78,7 +77,6 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
-  # --- TRWALOSC: kazdy pod dostaje wlasny PersistentVolumeClaim ---
   volumeClaimTemplates:
     - metadata:
         name: postgres-data

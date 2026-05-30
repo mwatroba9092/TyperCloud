@@ -1,10 +1,3 @@
-# Lokalne srodowisko deweloperskie TyperCloud (WSL2 / Ubuntu 24.04).
-# Uruchomienie:  docker compose up --build
-# Frontend (Streamlit) dostepny na: http://localhost:8501
-# Zitadel (logowanie)  dostepny na: http://localhost:8080
-#
-# UWAGA: wartosci hasel sa DEMO - sa tu jawnie tylko dla wygody lokalnej.
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -56,7 +49,6 @@ services:
 
   backend:
     build: ./services/backend
-    # initContainer w K8s = tutaj uruchamiamy migracje przed startem API.
     command: >
       sh -c "python -m app.init_db &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000"
