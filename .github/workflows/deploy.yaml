@@ -75,7 +75,19 @@ jobs:
       - name: Wczytanie kubeconfig z sekretu
         run: |
           mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          TMP_KUBECONFIG=$(mktemp)
+          if printf '%s' "${{ secrets.KUBE_CONFIG }}" | base64 --decode > "$TMP_KUBECONFIG" 2>/dev/null \
+            && KUBECONFIG="$TMP_KUBECONFIG" kubectl config view >/dev/null 2>&1; then
+            echo "Uzyto kubeconfig zakodowanego w base64."
+          else
+            printf '%s' "${{ secrets.KUBE_CONFIG }}" > "$TMP_KUBECONFIG"
+            if ! KUBECONFIG="$TMP_KUBECONFIG" kubectl config view >/dev/null 2>&1; then
+              echo "::error::Sekret KUBE_CONFIG nie zawiera poprawnego kubeconfig (ani base64, ani plain text)."
+              exit 1
+            fi
+            echo "Uzyto kubeconfig w plain text."
+          fi
+          mv "$TMP_KUBECONFIG" $HOME/.kube/config
           chmod 600 $HOME/.kube/config
 
       - name: Wdrozenie manifestow (Kustomize, overlay dev)
