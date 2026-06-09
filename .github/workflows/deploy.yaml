@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAMESPACE: ghcr.io/mwatroba9092/TyperCloud
+  IMAGE_NAMESPACE: ghcr.io/mwatroba9092/typercloud
 
 jobs:
   test:
