@@ -11,11 +11,11 @@ patches:
 
 images:
   - name: typercloud/backend
-    newName: ghcr.io/mwatroba9092/TyperCloud/backend
+    newName: ghcr.io/mwatroba9092/typercloud/backend
     newTag: prod
   - name: typercloud/frontend
-    newName: ghcr.io/mwatroba9092/TyperCloud/frontend
+    newName: ghcr.io/mwatroba9092/typercloud/frontend
     newTag: prod
   - name: typercloud/worker
-    newName: ghcr.io/mwatroba9092/TyperCloud/worker
+    newName: ghcr.io/mwatroba9092/typercloud/worker
     newTag: prod
