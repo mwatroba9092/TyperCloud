@@ -75,20 +75,54 @@ jobs:
       - name: Wczytanie kubeconfig z sekretu
         run: |
           mkdir -p $HOME/.kube
-          TMP_KUBECONFIG=$(mktemp)
-          if printf '%s' "${{ secrets.KUBE_CONFIG }}" | base64 --decode > "$TMP_KUBECONFIG" 2>/dev/null \
-            && KUBECONFIG="$TMP_KUBECONFIG" kubectl config view >/dev/null 2>&1; then
-            echo "Uzyto kubeconfig zakodowanego w base64."
-          else
-            printf '%s' "${{ secrets.KUBE_CONFIG }}" > "$TMP_KUBECONFIG"
-            if ! KUBECONFIG="$TMP_KUBECONFIG" kubectl config view >/dev/null 2>&1; then
-              echo "::error::Sekret KUBE_CONFIG nie zawiera poprawnego kubeconfig (ani base64, ani plain text)."
-              exit 1
-            fi
-            echo "Uzyto kubeconfig w plain text."
+          KUBE_CONFIG_SECRET="${{ secrets.KUBE_CONFIG }}"
+          if [ -z "$KUBE_CONFIG_SECRET" ]; then
+            echo "::error::Sekret KUBE_CONFIG jest pusty."
+            exit 1
           fi
+
+          TMP_KUBECONFIG=$(mktemp)
+          TMP_KUBECONFIG_NORMALIZED=$(mktemp)
+          parse_mode=""
+
+          validate_kubeconfig() {
+            KUBECONFIG="$1" kubectl config view >/dev/null 2>&1
+          }
+
+          normalize_escaped_newlines() {
+            perl -pe 's/\\r//g; s/\\n/\n/g' "$1" > "$2"
+          }
+
+          if printf '%s' "$KUBE_CONFIG_SECRET" | base64 --decode > "$TMP_KUBECONFIG" 2>/dev/null; then
+            if validate_kubeconfig "$TMP_KUBECONFIG"; then
+              parse_mode="base64"
+            elif normalize_escaped_newlines "$TMP_KUBECONFIG" "$TMP_KUBECONFIG_NORMALIZED" \
+              && validate_kubeconfig "$TMP_KUBECONFIG_NORMALIZED"; then
+              mv "$TMP_KUBECONFIG_NORMALIZED" "$TMP_KUBECONFIG"
+              parse_mode="base64-escaped"
+            fi
+          fi
+
+          if [ -z "$parse_mode" ]; then
+            printf '%s' "$KUBE_CONFIG_SECRET" > "$TMP_KUBECONFIG"
+            if validate_kubeconfig "$TMP_KUBECONFIG"; then
+              parse_mode="plain"
+            elif normalize_escaped_newlines "$TMP_KUBECONFIG" "$TMP_KUBECONFIG_NORMALIZED" \
+              && validate_kubeconfig "$TMP_KUBECONFIG_NORMALIZED"; then
+              mv "$TMP_KUBECONFIG_NORMALIZED" "$TMP_KUBECONFIG"
+              parse_mode="plain-escaped"
+            fi
+          fi
+
+          if [ -z "$parse_mode" ]; then
+            echo "::error::Sekret KUBE_CONFIG nie zawiera poprawnego kubeconfig (base64/plain text; wspierane sa tez sekwencje \\n)."
+            exit 1
+          fi
+
+          rm -f "$TMP_KUBECONFIG_NORMALIZED"
           mv "$TMP_KUBECONFIG" $HOME/.kube/config
           chmod 600 $HOME/.kube/config
+          echo "Uzyto kubeconfig (${parse_mode})."
 
       - name: Wdrozenie manifestow (Kustomize, overlay dev)
         run: kubectl apply -k k8s/overlays/dev
