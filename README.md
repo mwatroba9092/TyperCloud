@@ -169,7 +169,7 @@ Pipeline (`.github/workflows/deploy.yaml`) uruchamiany przy `push` na `main`:
 3. **deploy** — `kubectl apply -k k8s/overlays/dev` + `kubectl rollout status`.
 
 Obrazy publikowane do `ghcr.io/mwatroba9092/typercloud/*` (zgodnie z `IMAGE_NAMESPACE` w workflow).
-Do ręcznej konfiguracji w GitHubie pozostaje tylko sekret **`KUBE_CONFIG`** (kubeconfig w base64), jeśli chcesz auto-deploy z Actions na klaster.
+Do ręcznej konfiguracji w GitHubie pozostaje tylko sekret **`KUBE_CONFIG`** (kubeconfig w plain text lub base64), jeśli chcesz auto-deploy z Actions na klaster.
 
 ---
 
