@@ -1,7 +1,5 @@
 # Lista kontrolna wymagań — TyperCloud
-
-Dokument dla prowadzącego. Mapuje każdy wymóg z polecenia na konkretną
-implementację (ze ścieżką do pliku). Na końcu — sekcja **Dowody działania**.
+**Dowody działania**.
 
 ---
 

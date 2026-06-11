@@ -32,12 +32,12 @@ spec:
                   key: DATABASE_URL
           readinessProbe:
             exec:
-              command: ["pgrep", "-f", "worker.py"]
+              command: ["sh", "-c", "kill -0 1"]
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             exec:
-              command: ["pgrep", "-f", "worker.py"]
+              command: ["sh", "-c", "kill -0 1"]
             initialDelaySeconds: 15
             periodSeconds: 20
           resources:
