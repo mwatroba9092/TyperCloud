@@ -68,4 +68,4 @@ docker compose restart postgres   # wolumen pgdata trwaly
 
 docker compose logs -f worker
 
-docker compose exec redis redis-cli PUBLISH match_finished 1
+docker compose exec redis redis-cli PUBLISH match_finished 
