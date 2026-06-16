@@ -62,10 +62,6 @@ jobs:
             ${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}:dev
             ${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}:${{ github.sha }}
 
-  helloword:
-    needs: 
-
-
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -119,7 +115,7 @@ jobs:
           fi
 
           if [ -z "$parse_mode" ]; then
-            echo "::error::Sekret KUBE_CONFIG nie zawiera poprawnego kubeconfig (base64/plain text; wspierane sa tez sekwencje \\n)."
+            echo "::error::Sekret KUBE_CONFIG nie zawiera poprawnego kubeconfig."
             exit 1
           fi
 
@@ -131,6 +127,9 @@ jobs:
       - name: Wdrozenie manifestow (Kustomize, overlay dev)
         run: kubectl apply -k k8s/overlays/dev
 
+      - name: Wymuszenie pobrania nowych obrazow przez K8s
+        run: |
+          kubectl rollout restart deployment backend frontend worker -n typercloud-dev
+
       - name: Weryfikacja rolloutu backendu
         run: kubectl rollout status deployment/backend -n typercloud-dev --timeout=90s
-
