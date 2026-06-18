@@ -1,5 +1,7 @@
 # TyperCloud
 
+### Michał Wątroba
+
 **TyperCloud** to chmurowa (cloud-native) aplikacja do typowania wyników meczów piłkarskich,
 zbudowana w architekturze mikroserwisowej. Projekt demonstruje praktyczne wykorzystanie
 Kubernetes, CI/CD oraz zabezpieczeń **OAuth 2.0 (PKCE + JWT)**.

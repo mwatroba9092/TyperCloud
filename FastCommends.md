@@ -69,3 +69,35 @@ docker compose restart postgres   # wolumen pgdata trwaly
 docker compose logs -f worker
 
 docker compose exec redis redis-cli PUBLISH match_finished 
+
+# Kuberenetes Komendy
+
+kubectl cluster-info 
+kubectl get namespaces 
+kubectl kustomize k8s/overlays/dev
+kubectl apply -k k8s/overlays/dev
+
+kubectl get pods -n typercloud-dev
+kubectl get deploy -n typercloud-dev
+kubectl get statefulsets -n typercloud-dev
+kubectl get services -n typercloud-dev
+kubectl get ingress -n typercloud-dev
+kubectl get configmaps -n typercloud-dev
+kubectl get secrets -n typercloud-dev
+kubectl get pvc -n typercloud-dev
+
+kubectl describe (zasob) <pod> -n typercloud-dev
+kubectl logs <pod> -n typercloud-dev
+kubectl logs -f <pod> -n typercloud-dev
+kubectl exec -it <pod> -n typercloud-dev -- sh (komenda)
+
+kubectl scale deployment (kontener) --replicas=? -n typercloud-dev
+kubectl delete pod <pod> -n typercloud-dev
+kubectl rollout restart deployment (kontener) -n typercloud-dev
+
+kuebctl port forward svc/backend 9090:8000 -n typercloud-dev
+kubectl cp <plik lokalny> typercloud-dev/<pod>:<sciezka>
+kubectl get deployment backend -o yaml -n typercloud-dev
+kubectl edit deploment worker -n typercloud-dev
+kubectl get netpol -n typercloud-dev
+kubectl get pdb -n typercloud
